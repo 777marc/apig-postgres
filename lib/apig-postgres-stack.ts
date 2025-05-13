@@ -12,8 +12,8 @@ export class ApigPostgresStack extends cdk.Stack {
 
     console.log("path::", join(__dirname, "/lambda", "handler.ts"));
 
-    const carsLambda = new NodejsFunction(this, "SpacesLambda", {
-      runtime: Runtime.NODEJS_18_X,
+    const carsLambda = new NodejsFunction(this, "CarsLambda", {
+      runtime: Runtime.NODEJS_20_X,
       handler: "handler",
       entry: join(__dirname, "lambda", "handler.ts"),
     });

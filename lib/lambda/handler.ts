@@ -19,31 +19,14 @@ async function handler(
   event: APIGatewayProxyEvent,
   context: Context
 ): Promise<APIGatewayProxyResult> {
-  let response;
-
-  try {
-    response = await client.send(
-      new GetSecretValueCommand({
-        SecretId: secret_name,
-        VersionStage: "AWSCURRENT", // VersionStage defaults to AWSCURRENT if unspecified
-      })
-    );
-  } catch (error) {
-    // For a list of exceptions thrown, see
-    // https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
-    throw error;
-  }
-
-  const secret = response.SecretString;
-
   try {
     switch (event.httpMethod) {
       case "GET":
-        const cars = await callDB(secret);
-        console.log("in get...", cars);
+        const carResults = await getCars();
+        console.log("carResults:", carResults);
         return {
           statusCode: 200,
-          body: JSON.stringify({ cars }),
+          body: JSON.stringify({ cars: carResults }),
         };
       default:
         break;
@@ -61,46 +44,45 @@ async function handler(
   };
 }
 
-const callDB: any = async (secret: any) => {
-  const client = new Client({
-    user: secret.username,
-    password: secret.password,
-    host: secret.host,
-    port: parseInt(secret.port),
-    database: secret.dbname,
-  });
+const getCars = async () => {
+  let response;
 
-  client
-    .connect()
-    .then(() => {
-      console.log("Connected to PostgreSQL database");
-    })
-    .catch((err) => {
-      console.error("Error connecting to PostgreSQL database", err);
-      close(client);
+  try {
+    response = await client.send(
+      new GetSecretValueCommand({
+        SecretId: secret_name,
+        VersionStage: "AWSCURRENT",
+      })
+    );
+  } catch (error) {
+    throw error;
+  }
+
+  const secret: any = response.SecretString;
+
+  if (secret) {
+    const creds = JSON.parse(secret);
+
+    const dbClient = new Client({
+      user: creds.username,
+      password: creds.password,
+      host: creds.host,
+      port: parseInt(creds.port),
+      database: creds.dbname,
     });
 
-  client.query("SELECT * FROM cars", (err, result) => {
-    if (err) {
-      console.error("Error executing query", err);
-      close(client);
-    } else {
-      console.log("Query result:", result.rows);
-      close(client);
-      return result.rows;
-    }
-  });
-};
+    await dbClient.connect();
 
-const close = (client: Client) => {
-  client
-    .end()
-    .then(() => {
-      console.log("Connection to PostgreSQL closed");
-    })
-    .catch((err) => {
-      console.error("Error closing connection", err);
-    });
+    const query = {
+      name: "get-cars",
+      text: "SELECT * FROM cars",
+      rowMode: "array",
+    };
+
+    const result = await dbClient.query(query);
+    await dbClient.end();
+    return result.rows;
+  }
 };
 
 export { handler };
