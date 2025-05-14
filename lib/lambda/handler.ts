@@ -23,7 +23,6 @@ async function handler(
     switch (event.httpMethod) {
       case "GET":
         const carResults = await getCars();
-        console.log("carResults:", carResults);
         return {
           statusCode: 200,
           body: JSON.stringify({ cars: carResults }),
