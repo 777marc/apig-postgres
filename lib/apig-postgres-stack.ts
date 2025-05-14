@@ -3,14 +3,23 @@ import { Construct } from "constructs";
 import { Runtime } from "aws-cdk-lib/aws-lambda";
 import { join } from "path";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
-import { LambdaIntegration, RestApi } from "aws-cdk-lib/aws-apigateway";
-import { Effect, PolicyStatement } from "aws-cdk-lib/aws-iam";
+import {
+  LambdaIntegration,
+  RestApi,
+  CognitoUserPoolsAuthorizer,
+  MethodOptions,
+  AuthorizationType,
+} from "aws-cdk-lib/aws-apigateway";
+import { Effect, PolicyStatement, User } from "aws-cdk-lib/aws-iam";
+import { IUserPool } from "aws-cdk-lib/aws-cognito";
+
+interface ApigPostgresStackProps extends cdk.StackProps {
+  userPool: IUserPool;
+}
 
 export class ApigPostgresStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props: ApigPostgresStackProps) {
     super(scope, id, props);
-
-    console.log("path::", join(__dirname, "/lambda", "handler.ts"));
 
     const carsLambda = new NodejsFunction(this, "CarsLambda", {
       runtime: Runtime.NODEJS_20_X,
@@ -34,6 +43,29 @@ export class ApigPostgresStack extends cdk.Stack {
 
     const api = new RestApi(this, "CarsApi");
     const carsResource = api.root.addResource("cars");
-    carsResource.addMethod("GET", new LambdaIntegration(carsLambda));
+
+    const authorizer = new CognitoUserPoolsAuthorizer(
+      this,
+      "CarsApiAuthorizer",
+      {
+        cognitoUserPools: [props.userPool],
+        identitySource: "method.request.header.Authorization",
+      }
+    );
+
+    authorizer._attachToApi(api);
+
+    const optionsWithAuth: MethodOptions = {
+      authorizationType: AuthorizationType.COGNITO,
+      authorizer: {
+        authorizerId: authorizer.authorizerId,
+      },
+    };
+
+    carsResource.addMethod(
+      "GET",
+      new LambdaIntegration(carsLambda),
+      optionsWithAuth
+    );
   }
 }
