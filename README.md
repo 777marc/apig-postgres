@@ -1,14 +1,7 @@
-# Welcome to your CDK TypeScript project
+# CDK project which uses api gateway w/ cognito authorizer
 
-This is a blank project for CDK development with TypeScript.
+## Datasource is Postgrsql DB on an EC2 instance
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
+## The API uses a lambda integration which uses secrets to build the connect string to the datasource
 
-## Useful commands
-
-* `npm run build`   compile typescript to js
-* `npm run watch`   watch for changes and compile
-* `npm run test`    perform the jest unit tests
-* `npx cdk deploy`  deploy this stack to your default AWS account/region
-* `npx cdk diff`    compare deployed stack with current state
-* `npx cdk synth`   emits the synthesized CloudFormation template
+##
