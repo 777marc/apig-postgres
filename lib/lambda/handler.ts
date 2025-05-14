@@ -54,8 +54,11 @@ const getCars = async () => {
         VersionStage: "AWSCURRENT",
       })
     );
-  } catch (error) {
-    throw error;
+  } catch (error: any) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: error.message }),
+    };
   }
 
   const secret: any = response.SecretString;
@@ -83,6 +86,10 @@ const getCars = async () => {
     await dbClient.end();
     return result.rows;
   }
+  return {
+    statusCode: 500,
+    body: "error",
+  };
 };
 
 export { handler };
