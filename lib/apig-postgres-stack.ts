@@ -9,6 +9,7 @@ import {
   CognitoUserPoolsAuthorizer,
   MethodOptions,
   AuthorizationType,
+  TokenAuthorizer,
 } from "aws-cdk-lib/aws-apigateway";
 import { Effect, PolicyStatement, User } from "aws-cdk-lib/aws-iam";
 import { IUserPool } from "aws-cdk-lib/aws-cognito";
@@ -44,19 +45,31 @@ export class ApigPostgresStack extends cdk.Stack {
     const api = new RestApi(this, "CarsApi");
     const carsResource = api.root.addResource("cars");
 
-    const authorizer = new CognitoUserPoolsAuthorizer(
-      this,
-      "CarsApiAuthorizer",
-      {
-        cognitoUserPools: [props.userPool],
-        identitySource: "method.request.header.Authorization",
-      }
-    );
+    const jwtAuthLambda = new NodejsFunction(this, "JwtAuthLambda", {
+      runtime: Runtime.NODEJS_20_X,
+      handler: "handler",
+      entry: join(__dirname, "lambda", "jwtHandler.ts"),
+    });
+
+    // const authorizer = new CognitoUserPoolsAuthorizer(
+    //   this,
+    //   "CarsApiAuthorizer",
+    //   {
+    //     cognitoUserPools: [props.userPool],
+    //     identitySource: "method.request.header.Authorization",
+    //   }
+    // );
+
+    const authorizer = new TokenAuthorizer(this, "CarsApiJWTAuthorizer", {
+      handler: jwtAuthLambda,
+      identitySource: "method.request.header.Authorization",
+      resultsCacheTtl: cdk.Duration.seconds(0),
+    });
 
     authorizer._attachToApi(api);
 
     const optionsWithAuth: MethodOptions = {
-      authorizationType: AuthorizationType.COGNITO,
+      authorizationType: AuthorizationType.CUSTOM,
       authorizer: {
         authorizerId: authorizer.authorizerId,
       },
