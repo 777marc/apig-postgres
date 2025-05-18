@@ -1,13 +1,7 @@
 import { PolicyDocument } from "aws-lambda";
-import { CognitoJwtVerifier } from "aws-jwt-verify";
 import { APIGatewayAuthorizerResult } from "aws-lambda/trigger/api-gateway-authorizer";
 import "source-map-support/register";
-
-const cognitoJwtVerifier = CognitoJwtVerifier.create({
-  userPoolId: "us-east-1_FrMsEtLIR",
-  clientId: "6bbbd0uq8adf067cpe0gfdgcbh",
-  tokenUse: "access",
-});
+import jwt, { Secret, JwtPayload } from "jsonwebtoken";
 
 export const handler = async function (
   event: any
@@ -15,10 +9,14 @@ export const handler = async function (
   console.log(`event => ${JSON.stringify(event)}`);
 
   // authentication step by getting and validating JWT token
-  const authToken = event.headers.Authorization || "";
+  const authToken = event.authorizationToken || "";
+
   try {
-    // @ts-ignore
-    const decodedJWT = await cognitoJwtVerifier.verify(authToken);
+    const token = authToken.replace("Bearer ", "");
+    const SECRET_KEY = process.env.SECRET_KEY || "abc123";
+    const decoded = jwt.verify(token, SECRET_KEY);
+
+    console.log("decoded:", decoded);
 
     // After the token is verified we can do Authorization check here if needed.
     // If the request doesn't meet authorization conditions then we should return a Deny policy.
@@ -42,7 +40,7 @@ export const handler = async function (
     };
 
     const response: APIGatewayAuthorizerResult = {
-      principalId: decodedJWT.sub,
+      principalId: decoded.toString(),
       policyDocument,
       context,
     };
