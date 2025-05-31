@@ -16,8 +16,6 @@ export const handler = async function (
     const SECRET_KEY = process.env.SECRET_KEY || "abc123";
     const decoded = jwt.verify(token, SECRET_KEY);
 
-    console.log("decoded:", decoded);
-
     // After the token is verified we can do Authorization check here if needed.
     // If the request doesn't meet authorization conditions then we should return a Deny policy.
     const policyDocument: PolicyDocument = {
@@ -44,7 +42,6 @@ export const handler = async function (
       policyDocument,
       context,
     };
-    console.log(`response => ${JSON.stringify(response)}`);
 
     return response;
   } catch (err) {
