@@ -6,15 +6,15 @@ import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import {
   LambdaIntegration,
   RestApi,
-  CognitoUserPoolsAuthorizer,
   MethodOptions,
   AuthorizationType,
   TokenAuthorizer,
+  SecurityPolicy,
 } from "aws-cdk-lib/aws-apigateway";
 import { Effect, PolicyStatement, User } from "aws-cdk-lib/aws-iam";
 import { IUserPool } from "aws-cdk-lib/aws-cognito";
 import * as route53 from "aws-cdk-lib/aws-route53";
-import { Certificate } from "aws-cdk-lib/aws-certificatemanager";
+import * as certManager from "aws-cdk-lib/aws-certificatemanager";
 
 interface ApigPostgresStackProps extends cdk.StackProps {
   userPool: IUserPool;
@@ -44,7 +44,30 @@ export class ApigPostgresStack extends cdk.Stack {
       })
     );
 
-    const api = new RestApi(this, "CarsApi");
+    // Create DNS record
+    const r53Config = {
+      HostedZoneName: "mendoza-code.com",
+      HostedZoneId: "Z012275318RY9D12HI3DG",
+      RecordSet: "cars.mendoza-code.com",
+    };
+
+    // get mendoza-code cert
+    const certificateArn =
+      "arn:aws:acm:us-east-1:388414971737:certificate/656a47e6-9b89-4c63-b44b-b98f786197d9";
+    const cert = certManager.Certificate.fromCertificateArn(
+      this,
+      "domainCert",
+      certificateArn
+    );
+
+    const api = new RestApi(this, "CarsApi", {
+      domainName: {
+        domainName: r53Config.HostedZoneName,
+        certificate: cert,
+        securityPolicy: SecurityPolicy.TLS_1_2,
+      },
+    });
+
     const carsResource = api.root.addResource("cars");
 
     const jwtAuthLambda = new NodejsFunction(this, "JwtAuthLambda", {
@@ -52,15 +75,6 @@ export class ApigPostgresStack extends cdk.Stack {
       handler: "handler",
       entry: join(__dirname, "lambda", "jwtHandler.ts"),
     });
-
-    // const authorizer = new CognitoUserPoolsAuthorizer(
-    //   this,
-    //   "CarsApiAuthorizer",
-    //   {
-    //     cognitoUserPools: [props.userPool],
-    //     identitySource: "method.request.header.Authorization",
-    //   }
-    // );
 
     const authorizer = new TokenAuthorizer(this, "CarsApiJWTAuthorizer", {
       handler: jwtAuthLambda,
@@ -83,13 +97,6 @@ export class ApigPostgresStack extends cdk.Stack {
       optionsWithAuth
     );
 
-    // Create DNS record
-    const r53Config = {
-      HostedZoneName: "mendoza-code.com",
-      HostedZoneId: "Z012275318RY9D12HI3DG",
-      RecordSet: "cars.mendoza-code.com",
-    };
-
     // get hosted zone object
     const zoneObj = route53.HostedZone.fromHostedZoneAttributes(
       this,
@@ -100,15 +107,10 @@ export class ApigPostgresStack extends cdk.Stack {
       }
     );
 
-    // create cert
-    const cert: Certificate = new Certificate(this, "mendoza-code", {
-      domainName: r53Config.HostedZoneName,
-    });
-
-    api.addDomainName("cars api", {
-      domainName: r53Config.HostedZoneName,
-      certificate: cert,
-    });
+    // api.addDomainName("cars api", {
+    //   domainName: r53Config.HostedZoneName,
+    //   certificate: cert,
+    // });
 
     new route53.ARecord(this, "AliasRecord", {
       zone: zoneObj,
