@@ -34,7 +34,7 @@ export class ApigPostgresStack extends cdk.Stack {
       new PolicyStatement({
         effect: Effect.ALLOW,
         resources: [
-          "arn:aws:secretsmanager:us-east-1:388414971737:secret:dev/postgres_db-skwOme",
+          "arn:aws:secretsmanager:us-east-1:388414971737:secret:dev/postgres_db_2-6akrkl",
         ],
         actions: [
           "ssm:GetParameter",
@@ -48,7 +48,7 @@ export class ApigPostgresStack extends cdk.Stack {
     const r53Config = {
       HostedZoneName: "mendoza-code.com",
       HostedZoneId: "Z012275318RY9D12HI3DG",
-      RecordSet: "cars.mendoza-code.com",
+      Domain: "cars.mendoza-code.com",
     };
 
     // get mendoza-code cert
@@ -62,7 +62,7 @@ export class ApigPostgresStack extends cdk.Stack {
 
     const api = new RestApi(this, "CarsApi", {
       domainName: {
-        domainName: r53Config.HostedZoneName,
+        domainName: r53Config.Domain,
         certificate: cert,
         securityPolicy: SecurityPolicy.TLS_1_2,
       },
@@ -107,17 +107,17 @@ export class ApigPostgresStack extends cdk.Stack {
       }
     );
 
-    // api.addDomainName("cars api", {
-    //   domainName: r53Config.HostedZoneName,
-    //   certificate: cert,
-    // });
-
     new route53.ARecord(this, "AliasRecord", {
       zone: zoneObj,
       target: route53.RecordTarget.fromAlias(
         new cdk.aws_route53_targets.ApiGateway(api)
       ),
-      recordName: r53Config.RecordSet,
+      recordName: r53Config.Domain,
+    });
+
+    new cdk.CfnOutput(this, "restapi-id", {
+      value: api.restApiId,
+      exportName: "restApiId",
     });
   }
 }

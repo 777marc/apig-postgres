@@ -9,7 +9,7 @@ import {
 } from "@aws-sdk/client-secrets-manager";
 import { Client } from "pg";
 
-const secret_name = "dev/postgres_db_1";
+const secret_name = "dev/postgres_db_2";
 
 const client = new SecretsManagerClient({
   region: "us-east-1",
